@@ -1,0 +1,268 @@
+identification division.
+       program-id. Program1.
+       author. Programador.
+       installation. githubSpotDB.
+       date-written. 20/12/2016.
+
+      * ----------------------------
+      * Este programa lê o ficheiro "Pessoal.txt" ate ao fim.
+      * Por cada registo lido, apresenta os dados solicitados.
+      * Actualicação com melhoramento na visualização dos registos,
+      * inserção de novos registos e adicição da funcionalidade de
+      * procura de funcionários através do ID.
+      * ----------------------------
+
+       environment division.
+       configuration section.          
+       input-output section.
+       file-control.
+           select malta assign to "pessoal.txt"
+               organization is line sequential.
+           
+           select malta-ordenada assign to disk
+               access mode is sequential.
+
+       data division.
+       file section.
+       fd malta
+           label records are standard.             
+           01 REGISTO-PESSOAL.
+               05 CODIGO-EMPREGADO         PIC 9(5).
+               05 NOME-EMPREGADO           PIC X(35).
+               05 MORADA-EMPREGADO         PIC X(35).
+               05 DATA-ADMISSAO-EMPREGADO  PIC 9(8).
+               05 CODIGO-DEPARTAMENTO      PIC 9.
+       sd malta-ordenada.
+           01 REGISTO-PESSOAL-Ord.
+               05 CODIGO-EMPREGADO-Ord     PIC 9(5).
+               05 NOME-EMPREGADO-Ord       PIC X(35).
+               05 filler                   PIC X(44).
+              
+       working-storage section.
+       01 condicao             pic 9 value zero.
+       01 linha-ecran          pic 99 value zeros.
+       01 semvalor             pic x.
+       01 mesdia               pic 9(4).
+       01 valor8posicao        pic 9(8).
+       01 Num-ano-ser          pic 99.
+       01 intervalo1           pic 99 value zeros.
+       01 intervalo2           pic 99 value zeros.
+       01 intervalo3           pic 99 value zeros.
+       01 intervalo4           pic 99 value zeros.
+       01 intervalo5           pic 99 value zeros.
+       01 totalregisto         pic 99 value zeros.
+       01 WS-TODAY-YEAR        pic 9(4). 
+       01 WS-TODAY-YEAR-8P     pic 9(8).
+       01 opcao                pic X.
+       01 sem-valor            pic X.
+       01 ERRO                 PIC 9 value zero.
+       01 Modo-Display         pic 9.
+       01 id-registo           pic 9(5).
+       01 encontrar            pic 9.
+       01 fim                  pic x.
+
+       procedure division.
+       DECLARATIVES.
+       SupFile Section.
+           Use after error Procedure on malta.
+           display "ERRO! Ficheiro inexistente.". 
+           compute ERRO = 1.
+           display space.           
+       end declaratives.
+
+       inicio-programa.
+      *    move function CURRENT-DATE (1:4) to WS-TODAY-YEAR.    
+      *    compute WS-TODAY-YEAR-8P = WS-TODAY-YEAR * 10000. 
+           perform Menu until opcao = '0'. 
+       fim-programa.
+           stop run.
+       
+       Menu.
+           display "***** Menu - Gestao Pessoal *****".
+           display space.
+           display "<1> Mostrar Registos".
+           display "<2> Adicionar novo registo".
+           display "<3> Procurar registo por ID".
+           display "<4> Tabela da antiguidade".
+           display "<5> Ordenar registos por ID".
+           display "<6> Ordenar registos por Nome".
+           display space.
+           display "<0> Sair.".
+           accept opcao.
+           
+           evaluate opcao
+               when '1'
+                   compute linha-ecran = 0
+                   Compute Modo-Display = 1
+                   perform Mostrar-Registos
+               when '2'
+                   move 0 to encontrar
+                   perform indicar-id-registo
+                   compute Modo-Display = 3
+                   perform Mostrar-Registos                                    
+                   if encontrar = 1 
+                       display "Registo existente!"
+                   else    
+                       display space                     
+                       display "Inserir registo"
+                       display space
+                       perform adicionar-registo                                                        
+                   end-if
+                   display space
+               when '3'
+                   move 0 to encontrar
+                   perform indicar-id-registo
+                   compute Modo-Display = 3
+                   perform Mostrar-Registos                   
+                   if encontrar = 0 
+                       display "Registo nao encontrado!"
+                   display space
+               when '4'      
+                   Compute Modo-display = 4                   
+                   perform Mostrar-Registos
+                   perform displaytotalizadoresAnos
+                   display space   
+               when '5'
+                   sort malta-ordenada on ascending key CODIGO-EMPREGADO-Ord
+                       using malta giving malta     
+                   if ERRO = 0  
+                       display "Ordenou os registos por ID com sucesso!"
+                   else
+                       compute ERRO = 0
+                   end-if
+               when '6'
+                   sort malta-ordenada on descending key 
+                   NOME-EMPREGADO-Ord
+                       using malta giving malta     
+                   if ERRO = 0  
+                       display "Ordenou os registos por Nome 
+                       decrescente com sucesso!"
+                   else
+                       compute ERRO = 0
+                   end-if            
+               when '0'
+                   display "Obrigado!"                   
+                   accept sem-valor
+               when other 
+                   display "Opção inexistente! Carregue no 
+                   enter para continuar..."                   
+                   accept sem-valor
+           end-evaluate.      
+       
+       Mostrar-Registos.
+           open input malta.           
+           move zeros to condicao intervalo1 intervalo2 intervalo3 
+           intervalo4 intervalo5 totalregisto.
+           if ERRO = 0  
+               perform lerficheiro until condicao = 1                                     
+               close malta
+           else
+               compute ERRO = 0.
+           display space.   
+
+       lerficheiro.
+           read malta at end move 1 to condicao.          
+           if condicao = 0
+               perform registos
+           evaluate Modo-display
+               when '1'
+                   perform display-registos2      
+               when '3'
+                   perform procurar-registo        
+               when '4'
+                   compute totalregisto = totalregisto + 1
+                   perform totalizadoresAnos
+           end-evaluate. 
+          
+       registos.
+           move function CURRENT-DATE (1:8) to WS-TODAY-YEAR-8P.       
+           compute Num-ano-ser = 
+           (WS-TODAY-YEAR-8P - DATA-ADMISSAO-EMPREGADO) / 10000.
+      *    move DATA-ADMISSAO-EMPREGADO to mesdia.
+      *    compute valor8posicao = DATA-ADMISSAO-EMPREGADO - mesdia.    
+      *    if mesdia > 101
+      *        compute Num-ano-ser = (WS-TODAY-YEAR-8P - valor8posicao) / 10000 - 1
+      *    else
+      *        compute Num-ano-ser = (WS-TODAY-YEAR-8P - valor8posicao) / 10000.                   
+       
+       display-registos.
+           add 1 to linha-ecran.          
+           display "Codigo do Empregado : " CODIGO-EMPREGADO.
+           display "Nome do Empregado : " NOME-EMPREGADO.
+           display "Data de Admissao : " DATA-ADMISSAO-EMPREGADO.
+           display "Numero de Anos completos de Servico : " Num-ano-ser.       
+           if linha-ecran = 7
+               display "Carrega na tecla Enter para continuar..."
+               accept semvalor
+               move 0 to linha-ecran
+               display space.     
+       
+       display-registos2.          
+           if linha-ecran = 0
+               display space
+               display "Cod   Nome          Data admissao  Anos Servico"
+               display "______________________________________________".             
+           add 1 to linha-ecran.          
+           display CODIGO-EMPREGADO " " NOME-EMPREGADO " " 
+           DATA-ADMISSAO-EMPREGADO "            " Num-ano-ser.       
+           if linha-ecran = 15
+               display space             
+               display "Carrega na tecla Enter para continuar..."
+               accept semvalor
+               move 0 to linha-ecran
+               display space.          
+
+       totalizadoresAnos.
+           if Num-ano-ser <= 1
+               compute intervalo1 = intervalo1 + 1.
+           if Num-ano-ser > 1 and Num-ano-ser <= 5
+               compute intervalo2 = intervalo2 + 1.
+           if Num-ano-ser > 5 and Num-ano-ser <= 10
+               compute intervalo3 = intervalo3 + 1.
+           if Num-ano-ser > 10 and Num-ano-ser <= 24
+               compute intervalo4 = intervalo4 + 1.
+           if Num-ano-ser > 24
+               compute intervalo5 = intervalo5 + 1.       
+
+       displaytotalizadoresAnos.
+           display "Total de Empregados ate 1 ano de antiguidade 
+           <" intervalo1 ">".
+           display "Total de Empregados entre 1 e 5 anos de antiguidade 
+           (inclusive)  <" intervalo2 ">".
+           display "Total de Empregados entre 5 e 10 anos de antiguidade
+           (inclusive)  <" intervalo3 ">".
+           display "Total de Empregados entre 10 e 24 anos de antiguidade
+           (inclusive) <" intervalo4 ">".
+           display "Total de Empregados com + de 24 anos de antiguidade
+           <" intervalo5 ">".
+           display space.
+           display "Total de Registos Lidos                      
+           <" totalregisto ">".          
+           display space.
+       
+       indicar-id-registo.
+           display "Indique o ID: " with no advancing.
+           accept id-registo.
+       
+       procurar-registo.
+           if id-registo = CODIGO-EMPREGADO
+               display space
+               display "Codigo do Empregado : " CODIGO-EMPREGADO
+               display "Nome do Empregado   : " NOME-EMPREGADO
+               display "Data de Admissao    : " DATA-ADMISSAO-EMPREGADO
+               display "Anos de Servico     : " Num-ano-ser               
+               compute encontrar = 1
+               compute condicao = 1.
+       
+       adicionar-registo.           
+           open extend malta.
+           move id-registo to CODIGO-EMPREGADO.
+           display "Codigo do Empregado : " CODIGO-EMPREGADO.
+           display "Nome do Empregado   : " with no advancing.
+           accept NOME-EMPREGADO.
+           display "Data de Admissao    : " with no advancing.
+           accept DATA-ADMISSAO-EMPREGADO.           
+           write REGISTO-PESSOAL.           
+           close malta.
+           display space.
+           display "Registo inserido com sucesso!".
